@@ -65,3 +65,6 @@ class user_positons:
         acct_position[2][side] = side_margin_debit
         self.acctAvbl[mpid] += margin_freed
         return True
+
+
+test
