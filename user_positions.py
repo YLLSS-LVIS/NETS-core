@@ -1,4 +1,4 @@
-class user_positons:
+class user_positions:
     def __init__(self, _exchange_data, market_ticks):
         self.contractNotional = market_ticks
         # [[long, short], [bid_qty, offer_qty], [bid_collateral, offer_collateral]]
@@ -15,7 +15,9 @@ class user_positons:
         side_margin_debit = acct_position[2][side]
         raw_order_collateral = self.order_collateral(price, side, qty)
 
-        nettable_position = acct_position[1][side] - acct_position[0][1 - side]
+        margin_debit_delta = 0
+        # position available for new order to net = total opposite positions - net positions already taken up by other orders of the same side
+        nettable_position = acct_position[0][1 - side] - acct_position[1][side]
         if nettable_position > 0:
             margin_debit_delta = -self.contractNotional * (
                 nettable_position if qty > nettable_position else qty
@@ -41,6 +43,7 @@ class user_positons:
             self.acctAvbl[mpid] -= margin_used
             acct_position[2][side] += margin_debit_delta
             acct_position[1][side] += qty
+            self.positions[mpid] = acct_position
             return True
         return False
 
@@ -96,5 +99,6 @@ class user_positons:
 
         self.acctBalance[mpid] += position_closure_credit - order_execution_debit
         acct_position[2][order_side] = side_margin_debit
+        acct_position[1][order_side] -= fill_qty
         market_position[order_side] += fill_qty - position_size_closed
         market_position[opposite_side] -= position_size_closed
