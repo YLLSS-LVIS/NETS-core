@@ -1,8 +1,12 @@
 import array
+from ssl import ALERT_DESCRIPTION_RECORD_OVERFLOW
 
 
 class exchange_data:
-    def __init__(self, max_accounts, max_orders, max_markets):
+    def __init__(self, max_accounts, max_orders, max_markets, acct_max_orders):
+        self.maxOrders = max_orders
+        self.acctMaxOrders = acct_max_orders
+
         acct_default = [-1 for i in range(0, max_accounts)]
         # account status
         # -1 = no account at this slot
@@ -12,9 +16,11 @@ class exchange_data:
         self.balance = array.array("i", acct_default)
         self.available = array.array("i", acct_default)
         self.acctHeadOrder = array.array("i", acct_default)
+        self.acctTailOrder = array.array("i", acct_default)
 
         order_default = [-1 for i in range(0, max_orders)]
         self.orderID = array.array("i", [i for i in range(0, max_orders)])
+        self.vacantOrderID = array.array("i", [i for i in range(0, max_orders)])
         self.orderMarket = array.array("i", order_default)
         self.orderOutcome = array.array("h", order_default)
         self.orderPrice = array.array("i", order_default)
@@ -27,9 +33,49 @@ class exchange_data:
 
         self.markets = [None for i in range(0, max_markets)]
 
+        self.usedOrders = 0
+
     def create_acct(self, acct_slot, initial_balance):
         if self.acctStatus[acct_slot] == -1:
             initial_balance = int(initial_balance)
             self.balance[acct_slot] = initial_balance
             self.available[acct_slot] = initial_balance
             self.acctStatus[acct_slot] = 1
+
+    def get_order_slot(self, mpid):
+        if self.usedOrders == self.maxOrders:
+            raise Exception(
+                "Exchange out of memory: global order limit has been reached"
+            )
+
+        alloc_order_slot = self.vacantOrderID[self.usedOrders]
+        self.usedOrders += 1
+
+        if self.acctHeadOrder[mpid] == -1:
+            self.acctHeadOrder[mpid] = alloc_order_slot
+        old_tail = self.acctTailOrder[mpid]
+        if old_tail != -1:
+            self.orderAcctTail[old_tail] = alloc_order_slot
+        self.orderAcctHead[alloc_order_slot] = old_tail
+        self.orderAcctTail[alloc_order_slot] = -1
+        return alloc_order_slot
+
+    def release_order_slot(self, mpid, order_slot):
+        self.usedOrders -= 1
+        self.vacantOrderID[self.usedOrders] = order_slot
+
+        order_acct_head = self.orderAcctHead[order_slot]
+        order_acct_tail = self.orderAcctTail[order_slot]
+        if order_acct_head != -1:
+            self.orderAcctTail[order_acct_head] = order_acct_tail
+        if order_acct_tail != -1:
+            self.orderAcctHead[order_acct_tail] = order_acct_head
+
+        order_clob_head = self.orderClobHead[order_slot]
+        order_clob_tail = self.orderClobTail[order_slot]
+        if order_clob_head != -1:
+            self.orderClobTail[order_clob_head] = order_clob_tail
+        if order_clob_tail != -1:
+            self.orderClobHead[order_clob_tail] = order_clob_head
+
+        return True
