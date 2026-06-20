@@ -32,7 +32,6 @@ class exchange_data:
         self.orderClobTail = array.array("i", order_default)
 
         self.markets = [None for i in range(0, max_markets)]
-
         self.usedOrders = 0
 
     def create_acct(self, acct_slot, initial_balance):

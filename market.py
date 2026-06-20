@@ -1,5 +1,16 @@
+from clob import clob
+
+
 class Market:
-    def __init__(self, userID, n_outcomes, mkt_ticks):
+    def __init__(self, _exchange_data, userID, n_outcomes, contract_notional):
+        self._exchange_data = _exchange_data
+
         self.nOutcomes = n_outcomes
-        self.mkt_ticks = mkt_ticks
-        self.userPositions = {}
+        self.contractNotional = contract_notional
+
+        self.markets = [
+            clob(_market=self, clob_slot_idx=i) for i in range(0, self.nOutcomes)
+        ]
+        self.tob_sum = [0, self.nOutcomes * self.contractNotional]
+        self.head_clobs = [-1, -1]
+        self.tail_clobs = [-1, -1]
