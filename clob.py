@@ -117,3 +117,7 @@ class clob:
 
             self.orderClobHead[new_order_idx] = new_order_clob_head
             self.orderClobTail[new_order_idx] = new_order_clob_tail
+
+        # TODO: add book_price in side_book case
+
+    # TODO: add lifting TOB function
