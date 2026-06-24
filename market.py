@@ -2,9 +2,10 @@ from clob import clob
 
 
 class Market:
-    def __init__(self, _exchange_data, userID, n_outcomes, contract_notional):
+    def __init__(self, _exchange_data, market_slot, n_outcomes, contract_notional):
         self._exchange_data = _exchange_data
 
+        self.marketSlot = market_slot
         self.nOutcomes = n_outcomes
         self.contractNotional = contract_notional
 
