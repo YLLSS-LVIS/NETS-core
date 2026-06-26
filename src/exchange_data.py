@@ -18,9 +18,11 @@ class exchange_data:
         self.acctTailOrder = array.array("i", acct_default)
         self.acctTotalOrders = array.array("i", acct_default)
 
-        order_default = [-1 for i in range(0, max_orders)]
         self.orderID = array.array("i", [i for i in range(0, max_orders)])
         self.vacantOrderID = array.array("i", [i for i in range(0, max_orders)])
+
+        order_default = [-1 for i in range(0, max_orders)]
+        self.orderMPID = array.array("i", order_default)
         self.orderMarket = array.array("i", order_default)
         self.orderOutcome = array.array("h", order_default)
         self.orderPrice = array.array("i", order_default)
@@ -56,10 +58,12 @@ class exchange_data:
 
         if self.acctTotalOrders[mpid] == self.acctMaxOrders:
             return False
-        self.acctTotalOrders[mpid] += 1
 
         alloc_order_slot = self.vacantOrderID[self.usedOrders]
         self.usedOrders += 1
+
+        self.acctTotalOrders[mpid] += 1
+        self.orderMPID[alloc_order_slot] = mpid
 
         if self.acctHeadOrder[mpid] == -1:
             self.acctHeadOrder[mpid] = alloc_order_slot
@@ -77,6 +81,7 @@ class exchange_data:
         self.vacantOrderID[self.usedOrders] = order_slot
         self.acctTotalOrders[mpid] -= 1
 
+        self.orderMPID[order_slot] = -1
         order_acct_head = self.orderAcctHead[order_slot]
         order_acct_tail = self.orderAcctTail[order_slot]
         if order_acct_head != -1:
