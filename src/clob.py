@@ -1,10 +1,9 @@
 # TODO: add lifting TOB function
 #
-from sortedcontainers import SortedDict as sd
-from user_positions import user_positions as positions
-
 from exchange_data import exchange_data as exchg_data
 from market import Market
+from sortedcontainers import SortedDict as sd
+from user_positions import user_positions as positions
 
 
 class clob:
@@ -76,8 +75,12 @@ class clob:
         new_order_idx = self._allocOrder(mpid)
         if new_order_idx is False:
             return False, "Account-wide order limit has been reached"
-        if not self.userPositions.post_order(mpid, price, side, qty):
-            return False, "Insufficient Collateral"
+
+        post_order_success, return_msg = self.userPositions.post_order(
+            mpid, price, side, qty
+        )
+        if not post_order_success:
+            return False, return_msg
 
         self.orderMarket[new_order_idx] = self.marketSlot
         self.orderOutcome[new_order_idx] = self.outcomeSlot
