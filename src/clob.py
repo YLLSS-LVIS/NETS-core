@@ -1,3 +1,5 @@
+from unittest.util import unorderable_list_difference
+
 from sortedcontainers import SortedDict as sd
 
 from exchange_data import exchange_data as exchg_data
@@ -88,6 +90,9 @@ class clob:
         if price_lvl[4] > 0:
             return False
 
+        if book_price == self.tob[side]:
+            self.tob[side] = price_lvl[1]
+
         head_price, tail_price = price_lvl[0:2]
         if head_price is not None:
             side_book[head_price][1] = tail_price
@@ -116,12 +121,14 @@ class clob:
         book_price = price * [-1, 1][side]
         side_book = self.books[side]
         current_tob = self.tob[side]
-        if current_tob is None:
-            self.tob[side] = book_price
-            self.tobSum[side] -= -self.contractNotional * side == 1 + price
-        elif book_price < current_tob:
-            self.tob[side] = book_price
-            self.tobSum[side] += (current_tob - book_price) * ([1, -1][side])
+
+        if self.questionEnabled:
+            if current_tob is None:
+                self.tob[side] = book_price
+                self.tobSum[side] += -self.contractNotional * side == 1 + price
+            elif book_price < current_tob:
+                self.tob[side] = book_price
+                self.tobSum[side] += (current_tob - book_price) * ([1, -1][side])
 
         # remember: sd{price:[head_price, tail_price, head_order, tail_order, sum_orders, sum_qty]}
         if book_price not in side_book:
@@ -175,7 +182,11 @@ class clob:
         order_price = self.orderPrice[order_idx]
         order_side = self.orderSide[order_idx]
         order_qty = self.orderQty[order_idx]
-        self.userPositions.cancel_order(order_mpid, order_price, order_side, order_qty)
+
+        if order_qty != 0:
+            self.userPositions.cancel_order(
+                order_mpid, order_price, order_side, order_qty
+            )
 
         order_head = self.orderClobHead[order_idx]
         order_tail = self.orderClobTail[order_idx]
@@ -186,6 +197,44 @@ class clob:
 
         self.deduct_price_lvl(order_side, order_price, 1, order_qty)
         self._deallocOrder(order_mpid, order_idx)
+
+        return True, "Order Cancelled"
+
+    def lift_tob(self, side, qty, stp_mpid=-1):
+        side_tob = self.tob[side]
+        if side_tob is None:
+            return False
+
+        price_lvl = self.books[side][side_tob]
+        head_order = price_lvl[2]
+        lvl_orders = price_lvl[4]
+        filled_qty = 0
+
+        for i in range(0, lvl_orders):
+            order_mpid = self.orderMPID[head_order]
+            order_price = self.orderPrice[head_order]
+            order_qty = self.orderQty[head_order]
+
+            fill_qty = min(qty, order_qty)
+            if fill_qty == 0:
+                break
+
+            if order_mpid == stp_mpid:
+                self.cancel_order(order_mpid)
+                continue
+
+            self.userPositions.fill_order(
+                order_mpid, order_price, side, order_price, fill_qty
+            )
+            order_qty -= fill_qty
+            if order_qty == 0:
+                self.cancel_order(head_order)
+
+            qty -= fill_qty
+            filled_qty += fill_qty
+            head_order = self.orderClobTail[head_order]
+
+        return filled_qty
 
     def cancel_all_orders(self):
         cumulative_orders_cancelled = 0
