@@ -185,3 +185,44 @@ class positions:
 
         # Exchange takes the opposite side of the user's fill.
         self.exchange_fill(fill_price, opposite_side, fill_qty)
+
+    def get_position_settlement_value(self, position, settlement_price):
+        return position[0] * settlement_price + position[1] * (
+            self.contractNotional - settlement_price
+        )
+
+    def settle_outcome(self, settlement_value):
+        """
+        Settles all open positions in the outcome to a specified value.
+        WARNING: This function MUST be used in conjunction with clearing all open orders on the outcome contract.
+        Args:
+            settlement_value (int): Settlement value, denominated in the long side.
+        """
+        if not isinstance(settlement_value, int):
+            return False, "Settlement value must be an integer"
+        if settlement_value < 0 or settlement_value > self.contractNotional:
+            return (
+                False,
+                f"Settlement value must lie between 0 and {self.contractNotional} (inclusive)",
+            )
+
+        exchange_balance_delta = (
+            self.get_position_settlement_value(self.exchangePosition, settlement_value)
+            - self.exchangeCollateralUsed
+        )
+
+        self.acctBalance[0] += exchange_balance_delta
+        self.acctAvbl[0] += exchange_balance_delta
+
+        cumulative_settled = 0
+        for mpid, userPosition in self.acctPositions.values():
+            mpid = int(mpid)
+            user_market_position = userPosition[0]
+            user_position_settlement_value = self.get_position_settlement_value(
+                user_market_position, settlement_value
+            )
+            self.acctBalance[mpid] += user_position_settlement_value
+            self.acctAvbl[mpid] += user_position_settlement_value
+            cumulative_settled += sum(user_market_position)
+
+        return True, f"Settled {cumulative_settled} contracts."
